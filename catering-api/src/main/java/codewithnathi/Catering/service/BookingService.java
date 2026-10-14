@@ -188,9 +188,10 @@ public class BookingService {
             refund = payment.getTotalAmount().subtract(payment.getDepositAmount());
             message = "Cancellation within 3 days. Deposit forfeited. Balance refunded.";
         } else {
-            // No payment made and ≤ 3 days — just cancel with no refund
+            // No payment made and ≤ 3 days — allow cancellation with zero refund so the
+            // booking slot is freed for other customers rather than held as a ghost booking.
             refund = BigDecimal.ZERO;
-            message = "Booking cancelled. No payment was made.";
+            message = "Booking cancelled. No payment was made — no refund applicable.";
         }
 
         // 7. Update payment and booking

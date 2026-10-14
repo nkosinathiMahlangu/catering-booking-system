@@ -107,8 +107,8 @@ public class SecurityConfig {
                         // Auth endpoints are open — users need to register and log in without a token
                         .requestMatchers(HttpMethod.POST, "/api/auth/**").permitAll()
 
-                        // Public package listing — anonymous browsing is allowed
-                        .requestMatchers(HttpMethod.GET, "/api/packages").permitAll()
+                        // Public package listing and single-package lookup — anonymous browsing is allowed
+                        .requestMatchers(HttpMethod.GET, "/api/packages", "/api/packages/{id}").permitAll()
 
                         // Package mutations are admin-only (create, update, deactivate)
                         .requestMatchers(HttpMethod.POST, "/api/packages/**").hasRole("ADMIN")

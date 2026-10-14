@@ -1,5 +1,6 @@
 package codewithnathi.Catering.service;
 
+import codewithnathi.Catering.dto.InvoiceResponse;
 import codewithnathi.Catering.entity.Booking;
 import codewithnathi.Catering.entity.Invoice;
 import codewithnathi.Catering.entity.Payment;
@@ -8,6 +9,7 @@ import codewithnathi.Catering.repository.InvoiceRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -29,11 +31,16 @@ public class InvoiceService {
     /**
      * Creates a booking-confirmation invoice when the deposit is paid.
      * Sent to the user's registered email.
+     * <p>
+     * Both saves run within a single transaction so no concurrent reader
+     * can observe an invoice with a null {@code invoiceNumber}.
+     * </p>
      *
      * @param booking the booking being confirmed
      * @param payment the associated payment record
      * @return the saved {@link Invoice}
      */
+    @Transactional
     public Invoice createBookingConfirmation(Booking booking, Payment payment) {
         Invoice invoice = Invoice.builder()
                 .booking(booking)
@@ -56,11 +63,14 @@ public class InvoiceService {
 
     /**
      * Creates a payment-receipt invoice when the full amount is paid.
+     * Both saves run within a single transaction so no concurrent reader
+     * can observe an invoice with a null {@code invoiceNumber}.
      *
      * @param booking the booking that has been fully paid
      * @param payment the associated payment record
      * @return the saved {@link Invoice}
      */
+    @Transactional
     public Invoice createPaymentReceipt(Booking booking, Payment payment) {
         Invoice invoice = Invoice.builder()
                 .booking(booking)
@@ -84,11 +94,14 @@ public class InvoiceService {
     /**
      * Creates a cancellation-statement invoice showing what was paid, what is
      * forfeited, and what is refunded.
+     * Both saves run within a single transaction so no concurrent reader
+     * can observe an invoice with a null {@code invoiceNumber}.
      *
      * @param booking the booking being cancelled
      * @param payment the associated payment record (must already have refundAmount set)
      * @return the saved {@link Invoice}
      */
+    @Transactional
     public Invoice createCancellationStatement(Booking booking, Payment payment) {
         String notes = buildCancellationNotes(payment);
 
@@ -115,25 +128,51 @@ public class InvoiceService {
      * Returns all invoices associated with a booking.
      *
      * @param bookingId the booking id
-     * @return list of invoices (may be empty)
+     * @return list of invoice responses (may be empty)
      */
-    public List<Invoice> getInvoicesForBooking(Long bookingId) {
-        return invoiceRepository.findByBooking_Id(bookingId);
+    public List<InvoiceResponse> getInvoicesForBooking(Long bookingId) {
+        return invoiceRepository.findByBooking_Id(bookingId)
+                .stream()
+                .map(this::toResponse)
+                .toList();
     }
 
     /**
      * Returns a single invoice by id.
      *
      * @param invoiceId the invoice id
-     * @return the matching {@link Invoice}
+     * @return the matching {@link InvoiceResponse}
      * @throws EntityNotFoundException if no invoice with that id exists
      */
-    public Invoice getInvoice(Long invoiceId) {
-        return invoiceRepository.findById(invoiceId)
+    public InvoiceResponse getInvoice(Long invoiceId) {
+        Invoice invoice = invoiceRepository.findById(invoiceId)
                 .orElseThrow(() -> new EntityNotFoundException("Invoice not found with id: " + invoiceId));
+        return toResponse(invoice);
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────
+
+    /**
+     * Maps an {@link Invoice} entity to a safe {@link InvoiceResponse} DTO.
+     * Extracts only scalar fields from the associated {@link Booking} so that
+     * no entity graph (including the User password hash) is ever exposed.
+     */
+    private InvoiceResponse toResponse(Invoice invoice) {
+        return InvoiceResponse.builder()
+                .id(invoice.getId())
+                .invoiceNumber(invoice.getInvoiceNumber())
+                .invoiceType(invoice.getInvoiceType())
+                .invoiceDate(invoice.getInvoiceDate())
+                .bookingId(invoice.getBooking() != null ? invoice.getBooking().getId() : null)
+                .eventDate(invoice.getBooking() != null ? invoice.getBooking().getEventDate() : null)
+                .totalAmount(invoice.getTotalAmount())
+                .depositAmount(invoice.getDepositAmount())
+                .balanceDue(invoice.getBalanceDue())
+                .refundAmount(invoice.getRefundAmount())
+                .notes(invoice.getNotes())
+                .createdAt(invoice.getCreatedAt())
+                .build();
+    }
 
     private String buildInvoiceNumber(Long id) {
         int year = LocalDate.now().getYear();

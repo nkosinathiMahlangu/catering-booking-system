@@ -1,6 +1,6 @@
 package codewithnathi.Catering.controller;
 
-import codewithnathi.Catering.entity.Invoice;
+import codewithnathi.Catering.dto.InvoiceResponse;
 import codewithnathi.Catering.service.InvoiceService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -24,10 +24,10 @@ public class InvoiceController {
      * Returns all invoices for a given booking.
      *
      * @param bookingId the booking whose invoices to retrieve
-     * @return 200 OK with the list of invoices
+     * @return 200 OK with the list of invoice responses
      */
     @GetMapping("/booking/{bookingId}")
-    public ResponseEntity<List<Invoice>> getInvoicesForBooking(@PathVariable Long bookingId) {
+    public ResponseEntity<List<InvoiceResponse>> getInvoicesForBooking(@PathVariable Long bookingId) {
         return ResponseEntity.ok(invoiceService.getInvoicesForBooking(bookingId));
     }
 
@@ -35,10 +35,10 @@ public class InvoiceController {
      * Returns a single invoice by id.
      *
      * @param invoiceId the invoice id
-     * @return 200 OK with the invoice
+     * @return 200 OK with the invoice response
      */
     @GetMapping("/{invoiceId}")
-    public ResponseEntity<Invoice> getInvoice(@PathVariable Long invoiceId) {
+    public ResponseEntity<InvoiceResponse> getInvoice(@PathVariable Long invoiceId) {
         return ResponseEntity.ok(invoiceService.getInvoice(invoiceId));
     }
 }
