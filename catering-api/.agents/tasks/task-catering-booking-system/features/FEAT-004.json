@@ -1,0 +1,23 @@
+{
+  "id": "FEAT-004",
+  "type": "feat",
+  "description": "Catering Package management: CateringPackageService and CateringPackageController giving admins full CRUD over packages and users read-only access to active packages. Depends on FEAT-001 and FEAT-002 (auth/security). Independent of FEAT-003.",
+  "status": "completed",
+  "steps": [
+    "Create src/main/java/codewithnathi/Catering/service/CateringPackageService.java — @Service, injects CateringPackageRepository. Methods: List<PackageResponse> getAllActivePackages() uses findByIsActiveTrue() (already in repo); List<PackageResponse> getAllPackages() uses findAll(); PackageResponse getPackage(Long id) uses findById + throws EntityNotFoundException if absent; PackageResponse createPackage(PackageRequest req) maps fields, sets isActive from req, saves; PackageResponse updatePackage(Long id, PackageRequest req) loads existing, updates fields, saves; void deactivatePackage(Long id) loads, sets isActive=false, saves. Include a private mapToResponse(CateringPackage pkg) helper returning PackageResponse.",
+    "Create src/main/java/codewithnathi/Catering/controller/CateringPackageController.java — @RestController @RequestMapping('/api/packages'). GET / (public, no auth required per SecurityConfig) -> packageService.getAllActivePackages(); GET /{id} (public) -> packageService.getPackage(id); GET /admin/all (@PreAuthorize hasRole ADMIN) -> packageService.getAllPackages(); POST / (@PreAuthorize hasRole ADMIN, @Valid @RequestBody PackageRequest) -> packageService.createPackage(req) returns 201; PUT /{id} (@PreAuthorize hasRole ADMIN) -> packageService.updatePackage(id, req) returns 200; DELETE /{id} (@PreAuthorize hasRole ADMIN) -> packageService.deactivatePackage(id) returns 204."
+  ],
+  "acceptance_criteria": [
+    "GET /api/packages returns only active packages without requiring auth",
+    "POST /api/packages requires ADMIN role — returns 403 for USER",
+    "PUT /api/packages/{id} updates all editable fields",
+    "DELETE /api/packages/{id} soft-deletes (sets isActive=false, does not remove the row)",
+    "CateringPackageService.getPackage throws EntityNotFoundException (handled by GlobalExceptionHandler as 404) for unknown id",
+    ".\\mvnw.cmd compile exits 0 from c:\\Code\\catering-booking-system\\catering-api"
+  ],
+  "verification": [
+    "cd c:\\Code\\catering-booking-system\\catering-api; .\\mvnw.cmd compile — must exit 0 with no compilation errors"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}
