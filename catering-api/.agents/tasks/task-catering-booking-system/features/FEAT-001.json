@@ -1,0 +1,29 @@
+{
+  "id": "FEAT-001",
+  "type": "chore",
+  "description": "Foundation: add JWT/validation/mail dependencies to pom.xml; replace hardcoded DB password in application.yaml with env var placeholders and add mail+JWT config blocks; append sensitive-file patterns to .gitignore; add refundAmount field to Payment.java; add countByEventDateAndStatusIn to BookingRepository. These changes have zero service-layer dependencies and must land first so all subsequent FEATs compile.",
+  "status": "completed",
+  "steps": [
+    "Add three jjwt dependencies (jjwt-api 0.12.6, jjwt-impl 0.12.6 runtime, jjwt-jackson 0.12.6 runtime), spring-boot-starter-validation, and spring-boot-starter-mail to pom.xml inside the <dependencies> block",
+    "Replace application.yaml: datasource password becomes ${DB_PASSWORD}, username becomes ${DB_USERNAME:postgres}, url becomes ${DB_URL:jdbc:postgresql://localhost:5432/catering_db}. Add mail block (host/port/username/password/starttls from env vars). Add top-level jwt block: secret=${JWT_SECRET}, expiration=${JWT_EXPIRATION:86400000}",
+    "Append to .gitignore: .env, .env.*, application-local.yaml, application-local.yml, application-prod.yaml, application-prod.yml, *.p12, *.jks, secrets/",
+    "Add refundAmount field (BigDecimal, @Column precision=10 scale=2) to Payment.java after the balanceDue field",
+    "Add to BookingRepository.java: `long countByEventDateAndStatusIn(LocalDate eventDate, List<BookingStatus> statuses);` with required imports for LocalDate, List, BookingStatus"
+  ],
+  "acceptance_criteria": [
+    "pom.xml contains jjwt-api, jjwt-impl, jjwt-jackson at version 0.12.6",
+    "pom.xml contains spring-boot-starter-validation and spring-boot-starter-mail",
+    "application.yaml contains no hardcoded password — DB password is ${DB_PASSWORD}",
+    "application.yaml has a jwt: block with secret and expiration keys",
+    "application.yaml has a spring.mail block",
+    ".gitignore contains .env and application-prod.yaml entries",
+    "Payment.java has a refundAmount field of type BigDecimal",
+    "BookingRepository.java has countByEventDateAndStatusIn method",
+    ".\\mvnw.cmd compile exits 0 from c:\\Code\\catering-booking-system\\catering-api"
+  ],
+  "verification": [
+    "cd c:\\Code\\catering-booking-system\\catering-api; .\\mvnw.cmd compile — must exit 0 with no compilation errors"
+  ],
+  "blocked_reason": null,
+  "findings": "All dependencies resolved from Maven Central. application.yaml env vars: DB_URL, DB_USERNAME, DB_PASSWORD (required), MAIL_HOST, MAIL_PORT, MAIL_USERNAME, MAIL_PASSWORD, JWT_SECRET (required), JWT_EXPIRATION (default 86400000ms). Subsequent FEATs must supply DB_PASSWORD and JWT_SECRET at runtime (e.g. via .env file, which is now gitignored). BookingStatus enum is in codewithnathi.Catering.entity — later FEATs that use countByEventDateAndStatusIn should pass statuses like List.of(BookingStatus.CONFIRMED, BookingStatus.PENDING)."
+}

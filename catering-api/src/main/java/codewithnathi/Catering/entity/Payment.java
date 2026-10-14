@@ -33,6 +33,9 @@ public class Payment {
     @Column(precision = 10, scale = 2)
     private BigDecimal balanceDue;
 
+    @Column(precision = 10, scale = 2)
+    private BigDecimal refundAmount;
+
     private LocalDate depositPaidDate;
 
     private LocalDate balancePaidDate;
