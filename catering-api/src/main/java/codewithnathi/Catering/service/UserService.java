@@ -13,6 +13,8 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
 
@@ -100,28 +102,25 @@ public class UserService implements UserDetailsService {
     }
 
     /**
-     * Initiates a password reset flow by generating a 6-digit OTP, persisting it
-     * against the user, and emailing it.
+     * Initiates a password reset flow by generating a 6-digit OTP, persisting its
+     * SHA-256 hash against the user, and emailing the plain OTP.
      * <p>
-     * The OTP is stored as plain text and expires after 2 minutes. Hashing is
-     * intentionally skipped for OTPs — they are short-lived, single-use values
-     * compared via plain equality.
+     * Silently no-ops for unknown email addresses to prevent account enumeration
+     * (the caller always receives a 200 response regardless).
      * </p>
      *
      * @param email the email address of the account to reset
-     * @throws UsernameNotFoundException if no account with that email exists
      */
     public void initiatePasswordReset(String email) {
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new UsernameNotFoundException("User not found with email: " + email));
-
-        // SecureRandom ensures the OTP cannot be predicted; formatted to always 6 digits
-        String otp = String.format("%06d", new SecureRandom().nextInt(1_000_000));
-        user.setResetOtpCode(otp);
-        user.setOtpExpiry(LocalDateTime.now().plusMinutes(2));
-        userRepository.save(user);
-
-        emailService.sendOtpEmail(email, otp);
+        // Silent no-op for unknown emails — prevents user-existence enumeration
+        userRepository.findByEmail(email).ifPresent(user -> {
+            // SecureRandom ensures the OTP cannot be predicted; formatted to always 6 digits
+            String otp = String.format("%06d", new SecureRandom().nextInt(1_000_000));
+            user.setResetOtpCode(hashOtp(otp));
+            user.setOtpExpiry(LocalDateTime.now().plusMinutes(2));
+            userRepository.save(user);
+            emailService.sendOtpEmail(email, otp);
+        });
     }
 
     /**
@@ -144,7 +143,7 @@ public class UserService implements UserDetailsService {
             throw new IllegalArgumentException("OTP has expired. Please request a new one.");
         }
 
-        if (!req.getOtpCode().equals(user.getResetOtpCode())) {
+        if (!hashOtp(req.getOtpCode()).equals(user.getResetOtpCode())) {
             throw new IllegalArgumentException("Invalid OTP code.");
         }
 
@@ -170,5 +169,26 @@ public class UserService implements UserDetailsService {
     public User getCurrentUser(String email) {
         return userRepository.findByEmail(email)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found with email: " + email));
+    }
+
+    // ── Helpers ──────────────────────────────────────────────────────────────
+
+    /**
+     * Returns the hex-encoded SHA-256 hash of the plain OTP value.
+     * Used to avoid storing the raw OTP in the database.
+     */
+    public String hashOtp(String plainOtp) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hashBytes = digest.digest(plainOtp.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            StringBuilder hex = new StringBuilder();
+            for (byte b : hashBytes) {
+                hex.append(String.format("%02x", b));
+            }
+            return hex.toString();
+        } catch (NoSuchAlgorithmException e) {
+            // SHA-256 is guaranteed to be available on all JVMs
+            throw new IllegalStateException("SHA-256 algorithm not available", e);
+        }
     }
 }

@@ -4,6 +4,7 @@ import jakarta.persistence.EntityNotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -44,6 +45,18 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(EntityNotFoundException.class)
     public ResponseEntity<Map<String, String>> handleEntityNotFound(EntityNotFoundException ex) {
+        return buildError(HttpStatus.NOT_FOUND, ex.getMessage());
+    }
+
+    /**
+     * Handles Spring Security's UsernameNotFoundException which is thrown when a user
+     * account cannot be found during authentication flows such as OTP verification or
+     * password reset (verify-otp, reset-password endpoints).
+     *
+     * @return 404 Not Found
+     */
+    @ExceptionHandler(UsernameNotFoundException.class)
+    public ResponseEntity<Map<String, String>> handleUsernameNotFound(UsernameNotFoundException ex) {
         return buildError(HttpStatus.NOT_FOUND, ex.getMessage());
     }
 

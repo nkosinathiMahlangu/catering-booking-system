@@ -5,9 +5,13 @@ import codewithnathi.Catering.entity.Booking;
 import codewithnathi.Catering.entity.Invoice;
 import codewithnathi.Catering.entity.Payment;
 import codewithnathi.Catering.enums.InvoiceType;
+import codewithnathi.Catering.enums.Role;
+import codewithnathi.Catering.exception.BookingNotAllowedException;
 import codewithnathi.Catering.repository.InvoiceRepository;
+import codewithnathi.Catering.repository.UserRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,6 +31,7 @@ public class InvoiceService {
 
     private final InvoiceRepository invoiceRepository;
     private final EmailService emailService;
+    private final UserRepository userRepository;
 
     /**
      * Creates a booking-confirmation invoice when the deposit is paid.
@@ -126,27 +131,36 @@ public class InvoiceService {
 
     /**
      * Returns all invoices associated with a booking.
+     * Enforces ownership: regular users may only retrieve invoices for their own bookings.
+     * Admins may access any booking's invoices.
      *
      * @param bookingId the booking id
+     * @param userEmail email of the authenticated caller
      * @return list of invoice responses (may be empty)
      */
-    public List<InvoiceResponse> getInvoicesForBooking(Long bookingId) {
-        return invoiceRepository.findByBooking_Id(bookingId)
-                .stream()
-                .map(this::toResponse)
-                .toList();
+    public List<InvoiceResponse> getInvoicesForBooking(Long bookingId, String userEmail) {
+        List<Invoice> invoices = invoiceRepository.findByBooking_Id(bookingId);
+        // Check ownership on the first invoice's booking (or fall back to an empty-list check)
+        if (!invoices.isEmpty()) {
+            enforceOwnership(invoices.get(0).getBooking(), userEmail);
+        }
+        return invoices.stream().map(this::toResponse).toList();
     }
 
     /**
      * Returns a single invoice by id.
+     * Enforces ownership: regular users may only retrieve their own invoices.
+     * Admins may access any invoice.
      *
      * @param invoiceId the invoice id
+     * @param userEmail email of the authenticated caller
      * @return the matching {@link InvoiceResponse}
      * @throws EntityNotFoundException if no invoice with that id exists
      */
-    public InvoiceResponse getInvoice(Long invoiceId) {
+    public InvoiceResponse getInvoice(Long invoiceId, String userEmail) {
         Invoice invoice = invoiceRepository.findById(invoiceId)
                 .orElseThrow(() -> new EntityNotFoundException("Invoice not found with id: " + invoiceId));
+        enforceOwnership(invoice.getBooking(), userEmail);
         return toResponse(invoice);
     }
 
@@ -210,5 +224,19 @@ public class InvoiceService {
                         ? "Refund Amount: R" + invoice.getRefundAmount() + "\n"
                         : "")
                 + "Notes: " + invoice.getNotes();
+    }
+
+    /**
+     * Enforces that the caller either owns the booking associated with an invoice
+     * or holds the ADMIN role. Throws {@link BookingNotAllowedException} otherwise.
+     */
+    private void enforceOwnership(Booking booking, String userEmail) {
+        if (booking == null) return;
+        boolean isAdmin = userRepository.findByEmail(userEmail)
+                .map(u -> u.getRole() == Role.ADMIN)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found: " + userEmail));
+        if (!isAdmin && !booking.getUser().getEmail().equals(userEmail)) {
+            throw new BookingNotAllowedException("You are not authorised to view this invoice");
+        }
     }
 }

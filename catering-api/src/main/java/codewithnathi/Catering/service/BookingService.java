@@ -130,11 +130,11 @@ public class BookingService {
      *
      * <pre>
      * Refund matrix:
-     *   daysToEvent > 3, no payment         → throw CancellationNotAllowedException
-     *   daysToEvent > 3, deposit only        → refund = depositAmount
-     *   daysToEvent > 3, fully paid          → refund = totalAmount
-     *   daysToEvent ≤ 3, deposit only        → refund = ZERO (deposit forfeited)
-     *   daysToEvent ≤ 3, fully paid          → refund = totalAmount - depositAmount (balance only)
+     *   daysToEvent > 4, no payment         → throw CancellationNotAllowedException
+     *   daysToEvent > 4, deposit only        → refund = depositAmount
+     *   daysToEvent > 4, fully paid          → refund = totalAmount
+     *   daysToEvent ≤ 4, deposit only        → refund = ZERO (deposit forfeited)
+     *   daysToEvent ≤ 4, fully paid          → refund = totalAmount - depositAmount (balance only)
      * </pre>
      *
      * @param bookingId booking to cancel
@@ -173,22 +173,22 @@ public class BookingService {
         BigDecimal refund;
         String message;
 
-        if (daysToEvent > 3 && !payment.isDepositPaid() && !payment.isFullyPaid()) {
+        if (daysToEvent > 4 && !payment.isDepositPaid() && !payment.isFullyPaid()) {
             throw new CancellationNotAllowedException("Nothing to cancel — no payment made");
-        } else if (daysToEvent > 3 && payment.isDepositPaid() && !payment.isFullyPaid()) {
+        } else if (daysToEvent > 4 && payment.isDepositPaid() && !payment.isFullyPaid()) {
             refund = payment.getDepositAmount();
             message = "Full deposit refunded";
-        } else if (daysToEvent > 3 && payment.isFullyPaid()) {
+        } else if (daysToEvent > 4 && payment.isFullyPaid()) {
             refund = payment.getTotalAmount();
             message = "Full amount refunded";
-        } else if (daysToEvent <= 3 && payment.isDepositPaid() && !payment.isFullyPaid()) {
+        } else if (daysToEvent <= 4 && payment.isDepositPaid() && !payment.isFullyPaid()) {
             refund = BigDecimal.ZERO;
-            message = "Cancellation within 3 days of event. Deposit is non-refundable.";
-        } else if (daysToEvent <= 3 && payment.isFullyPaid()) {
+            message = "Cancellation within 4 days of event. Deposit is non-refundable.";
+        } else if (daysToEvent <= 4 && payment.isFullyPaid()) {
             refund = payment.getTotalAmount().subtract(payment.getDepositAmount());
-            message = "Cancellation within 3 days. Deposit forfeited. Balance refunded.";
+            message = "Cancellation within 4 days. Deposit forfeited. Balance refunded.";
         } else {
-            // No payment made and ≤ 3 days — allow cancellation with zero refund so the
+            // No payment made and ≤ 4 days — allow cancellation with zero refund so the
             // booking slot is freed for other customers rather than held as a ghost booking.
             refund = BigDecimal.ZERO;
             message = "Booking cancelled. No payment was made — no refund applicable.";

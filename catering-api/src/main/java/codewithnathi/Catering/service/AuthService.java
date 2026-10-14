@@ -125,7 +125,7 @@ public class AuthService {
             throw new IllegalArgumentException("OTP has expired. Please request a new one.");
         }
 
-        if (!req.getOtpCode().equals(user.getResetOtpCode())) {
+        if (!userService.hashOtp(req.getOtpCode()).equals(user.getResetOtpCode())) {
             throw new IllegalArgumentException("Invalid OTP code.");
         }
     }

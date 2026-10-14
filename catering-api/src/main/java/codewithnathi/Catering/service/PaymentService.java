@@ -4,12 +4,16 @@ import codewithnathi.Catering.dto.PaymentRequest;
 import codewithnathi.Catering.dto.PaymentResponse;
 import codewithnathi.Catering.entity.Booking;
 import codewithnathi.Catering.entity.Payment;
+import codewithnathi.Catering.entity.User;
 import codewithnathi.Catering.enums.BookingStatus;
+import codewithnathi.Catering.enums.Role;
 import codewithnathi.Catering.exception.BookingNotAllowedException;
 import codewithnathi.Catering.repository.BookingRepository;
 import codewithnathi.Catering.repository.PaymentRepository;
+import codewithnathi.Catering.repository.UserRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -28,6 +32,7 @@ public class PaymentService {
     private final PaymentRepository paymentRepository;
     private final BookingRepository bookingRepository;
     private final InvoiceService invoiceService;
+    private final UserRepository userRepository;
 
     /**
      * Processes a payment (deposit or full) for a booking.
@@ -92,7 +97,8 @@ public class PaymentService {
     }
 
     /**
-     * Returns the payment record for a booking, verifying the caller owns the booking.
+     * Returns the payment record for a booking.
+     * Regular users may only view payments for their own bookings; admins can access any.
      *
      * @param bookingId the booking to look up
      * @param userEmail email of the authenticated user
@@ -102,7 +108,11 @@ public class PaymentService {
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new EntityNotFoundException("Booking not found: " + bookingId));
 
-        if (!booking.getUser().getEmail().equals(userEmail)) {
+        User currentUser = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found: " + userEmail));
+        boolean isAdmin = currentUser.getRole() == Role.ADMIN;
+
+        if (!isAdmin && !booking.getUser().getEmail().equals(userEmail)) {
             throw new BookingNotAllowedException("You are not authorised to view this payment");
         }
 
