@@ -1,7 +1,0 @@
-{
-  "task_id": "task-catering-booking-system",
-  "task_description": "Implement full REST API for catering booking system: JWT auth with OTP password reset, booking creation/cancellation with business rules, deposit/full payment processing with refund logic, invoice generation (3 types), and admin catering package CRUD. Spring Boot 4.1.1 / Java 21 / PostgreSQL.",
-  "status": "in_progress",
-  "feature_order": ["FEAT-001", "FEAT-002", "FEAT-003", "FEAT-004"],
-  "blocked_reason": null
-}
