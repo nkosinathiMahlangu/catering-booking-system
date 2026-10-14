@@ -2,9 +2,10 @@ package codewithnathi.Catering.service;
 
 import codewithnathi.Catering.dto.RegisterRequest;
 import codewithnathi.Catering.dto.ResetPasswordRequest;
-import codewithnathi.Catering.entity.Role;
 import codewithnathi.Catering.entity.User;
+import codewithnathi.Catering.enums.Role;
 import codewithnathi.Catering.repository.UserRepository;
+import codewithnathi.Catering.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -18,6 +19,10 @@ import java.time.LocalDateTime;
 /**
  * Core user management service. Implements {@link UserDetailsService} so Spring
  * Security can load users during JWT filter authentication and login.
+ * <p>
+ * {@code loadUserByUsername} returns a {@link UserPrincipal} adapter rather than
+ * the raw {@link User} entity, keeping the entity free of Spring Security contracts.
+ * </p>
  * <p>
  * Responsibilities:
  * <ul>
@@ -43,16 +48,18 @@ public class UserService implements UserDetailsService {
 
     /**
      * Loads a user by email for Spring Security authentication.
-     * Called by the JWT filter and the authentication manager on each login.
+     * Returns a {@link UserPrincipal} wrapping the entity so Spring Security's
+     * contracts are satisfied without polluting the JPA entity.
      *
      * @param email the email address acting as the username
-     * @return the matching {@link User} entity (which implements {@link UserDetails})
+     * @return a {@link UserPrincipal} wrapping the matching {@link User}
      * @throws UsernameNotFoundException if no user with that email exists
      */
     @Override
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
-        return userRepository.findByEmail(email)
+        User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found with email: " + email));
+        return new UserPrincipal(user);
     }
 
     /**

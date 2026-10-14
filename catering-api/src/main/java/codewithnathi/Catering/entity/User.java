@@ -1,17 +1,20 @@
 package codewithnathi.Catering.entity;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
+import codewithnathi.Catering.enums.Role;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.userdetails.UserDetails;
 
 import java.time.LocalDateTime;
-import java.util.Collection;
-import java.util.List;
 
+/**
+ * JPA entity representing a registered user of the catering system.
+ * <p>
+ * This is a pure database entity — it has no Spring Security dependencies.
+ * Spring Security integration is handled by {@link codewithnathi.Catering.security.UserPrincipal},
+ * which wraps this entity and implements {@code UserDetails}.
+ * </p>
+ */
 @Getter
 @Setter
 @NoArgsConstructor
@@ -19,7 +22,7 @@ import java.util.List;
 @Builder
 @Entity
 @Table(name = "users")
-public class User implements UserDetails {
+public class User {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -28,7 +31,7 @@ public class User implements UserDetails {
     @Column(unique = true, nullable = false)
     private String email;
 
-    @JsonIgnore
+    /** Stored as a BCrypt hash — never the plain-text password. */
     private String password;
 
     private String name;
@@ -38,43 +41,16 @@ public class User implements UserDetails {
     @Enumerated(EnumType.STRING)
     private Role role;
 
+    /** False means the account is disabled; login will be refused. */
     private boolean isActive;
 
+    /** Plain-text OTP stored temporarily during a password-reset flow. */
     private String resetOtpCode;
 
+    /** Expiry time for the current OTP — 2 minutes after generation. */
     private LocalDateTime otpExpiry;
 
     @CreationTimestamp
     @Column(updatable = false)
     private LocalDateTime createdAt;
-
-    @Override
-    public Collection<? extends GrantedAuthority> getAuthorities() {
-        return List.of(new SimpleGrantedAuthority("ROLE_" + role.name()));
-    }
-
-    @Override
-    public String getUsername() {
-        return email;
-    }
-
-    @Override
-    public boolean isAccountNonExpired() {
-        return true;
-    }
-
-    @Override
-    public boolean isAccountNonLocked() {
-        return true;
-    }
-
-    @Override
-    public boolean isCredentialsNonExpired() {
-        return true;
-    }
-
-    @Override
-    public boolean isEnabled() {
-        return isActive;
-    }
 }

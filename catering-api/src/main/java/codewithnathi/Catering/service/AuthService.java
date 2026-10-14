@@ -4,6 +4,7 @@ import codewithnathi.Catering.config.JwtUtil;
 import codewithnathi.Catering.dto.*;
 import codewithnathi.Catering.entity.User;
 import codewithnathi.Catering.repository.UserRepository;
+import codewithnathi.Catering.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -41,11 +42,13 @@ public class AuthService {
      *
      * @param req registration payload (email, password, name, surname)
      * @return an {@link AuthResponse} with token, email, role, and name
-     * @throws IllegalArgumentException  if the email is taken or the password fails validation
+     * @throws IllegalArgumentException if the email is taken or the password fails validation
      */
     public AuthResponse register(RegisterRequest req) {
         User user = userService.register(req);
-        String token = jwtUtil.generateToken(user);
+        // Wrap the entity in UserPrincipal so JwtUtil can call getUsername() on it
+        UserPrincipal principal = new UserPrincipal(user);
+        String token = jwtUtil.generateToken(principal);
         return AuthResponse.builder()
                 .token(token)
                 .email(user.getEmail())
@@ -58,8 +61,7 @@ public class AuthService {
      * Authenticates an existing user and returns a fresh JWT.
      * <p>
      * Delegates credential verification to Spring Security's {@link AuthenticationManager},
-     * which uses the {@link codewithnathi.Catering.config.SecurityConfig#authenticationProvider()}
-     * (DaoAuthenticationProvider + BCrypt) under the hood.
+     * which uses the DaoAuthenticationProvider (via SecurityConfig) under the hood.
      * If authentication fails, Spring throws {@link org.springframework.security.core.AuthenticationException}.
      * </p>
      *
@@ -72,9 +74,10 @@ public class AuthService {
                 new UsernamePasswordAuthenticationToken(req.getEmail(), req.getPassword())
         );
 
-        // Authentication passed — load the full user to build the response
-        User user = (User) userService.loadUserByUsername(req.getEmail());
-        String token = jwtUtil.generateToken(user);
+        // Authentication passed — load the principal and unwrap to entity for the response
+        UserPrincipal principal = (UserPrincipal) userService.loadUserByUsername(req.getEmail());
+        User user = principal.getUser();
+        String token = jwtUtil.generateToken(principal);
         return AuthResponse.builder()
                 .token(token)
                 .email(user.getEmail())
@@ -106,8 +109,8 @@ public class AuthService {
 
     /**
      * Verifies that the submitted OTP is valid for the given email address.
-     * Used as a standalone step in the multi-step reset flow (verify OTP before showing
-     * the new-password form) so the UI can gate the reset form behind a valid OTP.
+     * Used as a standalone step so the UI can gate the new-password form
+     * behind a confirmed OTP.
      *
      * @param req contains the email and the OTP code to verify
      * @throws UsernameNotFoundException if no account exists for that email
