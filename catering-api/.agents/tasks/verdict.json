@@ -1,0 +1,12 @@
+{
+  "verdict": "CHANGES_REQUESTED",
+  "findings": [
+    "Cancellation boundary off-by-one: code uses daysToEvent > 3 / <= 3 but spec requires > 4 / <= 4. At exactly 4 days remaining the code issues a full refund; the spec forfeits the deposit. Change all five branches in BookingService.cancelBooking.",
+    "UsernameNotFoundException → 500: GlobalExceptionHandler has no handler for UsernameNotFoundException or its parent AuthenticationException. Calls to /api/auth/forgot-password, /api/auth/verify-otp, and /api/auth/reset-password for an unknown email return 500. Add @ExceptionHandler(UsernameNotFoundException.class) or suppress enumeration by returning 200 unconditionally.",
+    "Plain-text OTP in database: resetOtpCode stores the raw 6-digit OTP. Hash it with SHA-256 before persisting and compare the hash on verification.",
+    "Invoice ownership not enforced: InvoiceService.getInvoice and getInvoicesForBooking perform no ownership check. Any authenticated user can retrieve invoices for any booking ID. Pass the caller's email and enforce the same ownership guard used in BookingService and PaymentService.",
+    "Admin bypass missing in PaymentService.getPaymentForBooking: hard ownership check rejects admins viewing other users' payments. Add the isAdmin bypass consistent with BookingService.getBooking and cancelBooking.",
+    "UsernameNotFoundException on /forgot-password leaks user existence: even with a corrected status code, a 404 vs 200 response reveals whether an email is registered. The service should silently no-op for unknown emails and the controller should always return 200."
+  ],
+  "reviewDoc": "c:\\Code\\catering-booking-system\\catering-api\\.agents\\tasks\\2026-10-14-231747-review.md"
+}
