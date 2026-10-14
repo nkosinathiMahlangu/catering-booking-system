@@ -42,3 +42,5 @@ application-prod.yml
 *.p12
 *.jks
 secrets/
+#ai agent ignore
+.agents
